@@ -33,6 +33,6 @@ jobs:
         context: .
         file: ./DockerFile
         push: true
-        tags: ${{ secrets.DOCKER_USERNAME }}/sivi-app:latest
+        tags: ${{ secrets.DOCKER_USERNAME }}/major-app:latest
 
     # Step 5: Deploy (optional, depending on where you host the app)
