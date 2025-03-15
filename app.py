@@ -171,33 +171,66 @@ def typewriter_effect_small(text):
 
 
 def process_screenshot_with_ocr_space(image):
-    api_key = 'K87461601788957'  # Your OCR.space API key
+    api_key = 'K82866588188957'  # Your OCR.space API key
     api_url = 'https://api.ocr.space/parse/image'
 
-    buffered = io.BytesIO()
-    image.save(buffered, format="JPEG")
-    image_bytes = buffered.getvalue()
-    
-    response = requests.post(
-        api_url,
-        files={'file': ('image.jpg', image_bytes, 'image/jpeg')},
-        data={'apikey': api_key, 'language': 'eng'}
-    )
-    
-    result = response.json()
-    
-    if result.get('IsErroredOnProcessing', True):
-        error_message = result.get('ErrorMessage', ['Unknown error'])
-        if isinstance(error_message, list):
-            error_message = " ".join(error_message)
-        return f"Error processing image: {error_message}"
-    
-    text = result['ParsedResults'][0]['ParsedText']
-    
-    model = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0.7)
-    response = model.invoke(text)
-    
-    return response.content if hasattr(response, 'content') else str(response)
+    try:
+        # Convert image to bytes
+        buffered = io.BytesIO()
+        image.save(buffered, format="JPEG")
+        image_bytes = buffered.getvalue()
+        
+        # Prepare files and headers
+        files = {
+            'file': ('image.jpg', image_bytes, 'image/jpeg')
+        }
+        payload = {
+            'apikey': api_key,
+            'language': 'eng',
+            'OCREngine': '2'
+        }
+        
+        # Make the request
+        response = requests.post(api_url, files=files, data=payload)
+        
+        # Check if response is successful
+        response.raise_for_status()
+        
+        try:
+            result = response.json()
+        except requests.exceptions.JSONDecodeError:
+            st.error("Failed to decode API response")
+            return "Error: Could not process the image. Please try again."
+
+        # Check if the OCR was successful
+        if result.get('OCRExitCode') != 1:
+            error_message = result.get('ErrorMessage', ['Unknown error'])
+            if isinstance(error_message, list):
+                error_message = " ".join(error_message)
+            st.error(f"OCR Error: {error_message}")
+            return f"Error processing image: {error_message}"
+
+        # Extract text from results
+        parsed_text = ""
+        if 'ParsedResults' in result and len(result['ParsedResults']) > 0:
+            parsed_text = result['ParsedResults'][0].get('ParsedText', '').strip()
+            
+            if not parsed_text:
+                return "No text was extracted from the image. Please try a clearer image."
+
+            # Process with Gemini
+            model = ChatGoogleGenerativeAI(model="gemini-exp-1206", temperature=0.7)
+            response = model.invoke(parsed_text)
+            return response.content if hasattr(response, 'content') else str(response)
+        
+        return "No text could be extracted from the image. Please try again with a clearer image."
+
+    except requests.exceptions.RequestException as e:
+        st.error(f"Network error occurred: {str(e)}")
+        return "Error: Could not connect to the OCR service. Please check your internet connection and try again."
+    except Exception as e:
+        st.error(f"An unexpected error occurred: {str(e)}")
+        return "An unexpected error occurred while processing the image. Please try again."
 
 # PDF Processing Functions
 def get_pdf_text(pdf_docs):
@@ -340,7 +373,7 @@ def display_quiz_with_immediate_feedback(questions):
 
 
 def main():
-    st.header("AI Powered SIVI'S English Teacher 💁")
+    st.header("AI Powered Study Helper 💁")
     typewriter_effect("StudyBuddi")
     typewriter_effect_small("Your perfect study partner")
     st.sidebar.image("https://assets.softr-files.com/applications/d89f3026-eb15-4c34-84f7-ef7818fa2c08/assets/a33eeaf3-3997-418b-b3bc-60b12d329b18.png",width=200,)
@@ -351,7 +384,7 @@ def main():
         if st.button("Video Summarizer"):
             st.write("[Open Video Summarizer](http://localhost:8502)")
         if st.button("Repo Chat"):
-            st.write("[Open Repo Chat](http://localhost:8080)")
+            st.write("[Open Repo Chat](https://chat-with-repo.onrender.com/)")
         st.title("Upload PDF")
         pdf_docs = st.file_uploader("Drop your PDF files here", accept_multiple_files=True)
         process_button = st.button("Process PDF")
@@ -407,7 +440,7 @@ def main():
 
     st.markdown("<br><br><br><br><br><br><br>", unsafe_allow_html=True)
     st.markdown("---")
-    st.markdown("Made with ❤️ by SARVOTTAM")
+    st.markdown("Made with ❤️ ")
 
 if __name__ == "__main__":
     main()
