@@ -24,7 +24,7 @@ google_api_key = os.getenv("GOOGLE_API_KEY")
 genai.configure(api_key=google_api_key)
 
 st.set_page_config(
-    page_title="SIVI AI Buddi",
+    page_title="AI Buddi",
     page_icon="📚",
     layout="wide",
     initial_sidebar_state="expanded",
